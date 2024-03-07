@@ -31,11 +31,10 @@
 
 #include <wolfssl/wolfcrypt/asn_public.h>
 
-/* Dummy type for EPKI to PKI context. */
-typedef void wp_Epki2Pki;
-
-/* A fake static global context. */
-static unsigned char fakeCtx[1];
+/* EPKI to PKI context. */
+typedef struct wp_Epki2Pki {
+    WOLFPROV_CTX* provCtx;
+} wp_Epki2Pki;
 
 /**
  * Create a new EPKI to PKI context.
@@ -47,8 +46,14 @@ static unsigned char fakeCtx[1];
  */
 static wp_Epki2Pki* wp_epki2pki_newctx(WOLFPROV_CTX* provCtx)
 {
-    (void)provCtx;
-    return fakeCtx;
+    wp_Epki2Pki *ctx = NULL;
+    if (wolfssl_prov_is_running()) { 
+        ctx = (wp_Epki2Pki*)OPENSSL_zalloc(sizeof(wp_Epki2Pki));
+    } 
+    if (ctx != NULL) { 
+        ctx->provCtx  = provCtx;
+    } 
+    return ctx;
 }
 
 /**
@@ -60,7 +65,7 @@ static wp_Epki2Pki* wp_epki2pki_newctx(WOLFPROV_CTX* provCtx)
  */
 static void wp_epki2pki_freectx(wp_Epki2Pki* ctx)
 {
-    (void)ctx;
+    OPENSSL_free(ctx);
 }
 
 #if LIBWOLFSSL_VERSION_HEX < 0x05000000
@@ -189,7 +194,7 @@ static int wp_epki2pki_decode(wp_Epki2Pki* ctx, OSSL_CORE_BIO* coreBio,
     (void)selection;
 
     /* Read the data from the BIO into buffer that is allocated on the fly. */
-    if (!wp_read_der_bio(coreBio, &data, &len)) {
+    if (!wp_read_der_bio(ctx->provCtx->libCtx, coreBio, &data, &len)) {
         ok = 0;
     }
     /* No data - nothing to do. */

@@ -31,11 +31,10 @@
 
 #include <wolfssl/wolfcrypt/asn_public.h>
 
-/* Dummy type for PEM to DER context. */
-typedef void wp_Pem2Der;
-
-/* A fake static global context. */
-static unsigned char fakeCtx[1];
+/* PEM to DER context. */
+typedef struct wp_Pem2Der {
+    WOLFPROV_CTX* provCtx;
+} wp_Pem2Der;
 
 /**
  * Create a new PEM to DER context.
@@ -47,8 +46,14 @@ static unsigned char fakeCtx[1];
  */
 static wp_Pem2Der* wp_pem2der_newctx(WOLFPROV_CTX* provCtx)
 {
-    (void)provCtx;
-    return fakeCtx;
+    wp_Pem2Der *ctx = NULL;
+    if (wolfssl_prov_is_running()) {
+        ctx = (wp_Pem2Der*)OPENSSL_zalloc(sizeof(wp_Pem2Der));
+    }
+    if (ctx != NULL) {
+        ctx->provCtx  = provCtx;
+    }
+    return ctx;
 }
 
 /**
@@ -60,7 +65,7 @@ static wp_Pem2Der* wp_pem2der_newctx(WOLFPROV_CTX* provCtx)
  */
 static void wp_pem2der_freectx(wp_Pem2Der* ctx)
 {
-    (void)ctx;
+    OPENSSL_free(ctx);
 }
 
 /**
@@ -383,7 +388,7 @@ static int wp_pem2der_decode(wp_Pem2Der* ctx, OSSL_CORE_BIO* coreBio,
     (void)selection;
 
     /* Read the data from the BIO into buffer that is allocated on the fly. */
-    if (!wp_read_der_bio(coreBio, &data, &len)) {
+    if (!wp_read_der_bio(ctx->provCtx->libCtx, coreBio, &data, &len)) {
         ok = 0;
     }
     /* No data - nothing to do. */

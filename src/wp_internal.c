@@ -680,19 +680,6 @@ int wp_encrypt_key(WOLFPROV_CTX* provCtx, const char* cipherName,
 #endif
 }
 
-/* TODO: Structure could change! */
-/*
- * Copy of Core BIO structure as it isn't public and need to get the BIO out.
- */
-struct ossl_core_bio_st {
-    /* Reference count. */
-    int ref_cnt;
-    /* Read/write reference count lock. */
-    CRYPTO_RWLOCK *ref_lock;
-    /* Underlying BIO. */
-    BIO *bio;
-};
-
 /**
  * Read data out of the core BIO.
  *
@@ -702,15 +689,21 @@ struct ossl_core_bio_st {
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wp_read_der_bio(OSSL_CORE_BIO *coreBio, unsigned char** data, word32* len)
+int wp_read_der_bio(OSSL_LIB_CTX *libCtx, OSSL_CORE_BIO *coreBio, unsigned char** data, word32* len)
 {
     int ok = 1;
     long readLen;
     unsigned char buf[128]; /* Read 128 bytes at a time. */
     unsigned char* p;
+    BIO *bio = NULL;
+
+    bio = BIO_new_from_core_bio(libCtx, coreBio);
+    if (bio == NULL) {
+        return 0;
+    }
 
     do {
-        readLen = BIO_read(coreBio->bio, buf, sizeof(buf));
+        readLen = BIO_read(bio, buf, sizeof(buf));
         if (readLen < -1) {
             ok = 0;
         }
@@ -730,21 +723,9 @@ int wp_read_der_bio(OSSL_CORE_BIO *coreBio, unsigned char** data, word32* len)
     }
     while (ok && (readLen > 0));
 
+    BIO_free(bio);
     return ok;
 }
-
-/**
- * Get the underlying BIO from the core BIO.
- *
- * @param [in]  coreBio  Core BIO.
- * @return  NULL on failure.
- * @return  Underlying BIO on success.
- */
-BIO* wp_corebio_get_bio(OSSL_CORE_BIO *coreBio)
-{
-    return coreBio->bio;
-}
-
 
 /**
  * Constant time, set mask when first value is equal to second.

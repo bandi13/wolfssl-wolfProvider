@@ -2085,7 +2085,7 @@ static int wp_dh_decode(wp_DhEncDecCtx* ctx, OSSL_CORE_BIO *cBio,
     if (dh == NULL) {
         ok = 0;
     }
-    if (ok && (!wp_read_der_bio(cBio, &data, &len))) {
+    if (ok && (!wp_read_der_bio(ctx->provCtx->libCtx, cBio, &data, &len))) {
         ok = 0;
     }
     if (ok && (ctx->format == WP_ENC_FORMAT_TYPE_SPECIFIC)) {
@@ -2383,7 +2383,7 @@ static int wp_dh_encode(wp_DhEncDecCtx* ctx, OSSL_CORE_BIO *cBio,
     int ok = 1;
 #if (LIBWOLFSSL_VERSION_HEX >= 0x05000000 && defined(WOLFSSL_DH_EXTRA))
     int rc;
-    BIO* out = wp_corebio_get_bio(cBio);
+    BIO* out = NULL;
     unsigned char* keyData = NULL;
     size_t keyLen;
     unsigned char* derData = NULL;
@@ -2394,6 +2394,7 @@ static int wp_dh_encode(wp_DhEncDecCtx* ctx, OSSL_CORE_BIO *cBio,
     int private = 0;
     byte* cipherInfo = NULL;
 
+    out = BIO_new_from_core_bio(ctx->provCtx->libCtx, cBio);
     if (out == NULL) {
         ok = 0;
     }
@@ -2498,6 +2499,7 @@ static int wp_dh_encode(wp_DhEncDecCtx* ctx, OSSL_CORE_BIO *cBio,
         }
     }
 
+    BIO_free(out);
     if (private) {
         OPENSSL_clear_free(derData, derLen);
         OPENSSL_clear_free(pemData, pemLen);
